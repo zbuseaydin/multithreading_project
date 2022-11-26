@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <math.h>
 
 int* integerList;
 int N;
@@ -15,37 +16,27 @@ double arithmeticMean;
 double harmonicMean;
 double standardDeviation;
 int iqrRange;
+int numThreads;
 
-int compare(const void * a, const void * b) {
+int compare(const void * a, const void * b)
+{
    return ( *(int*)a - *(int*)b );
 }
 
-int power(double base, double power) {
-    int res = 1;
-    while(power>0){
-        res *= base;
-        power--;
-    }
-    return res;
-}
-
-void* findMin(void* args){
+void* findMin(void* params){
     minimum = integerList[0];
-    pthread_exit(0);
 }
 
-void* findMax(void* args){
+void* findMax(void* params){
     maximum = integerList[N-1];
-    pthread_exit(0);
-}
-void* findRange(void* param)
-{
-    int len = *(int *)param;
-    range = integerList[len-1]-integerList[0];
-    pthread_exit(0);
 }
 
-void* findMode(void* param)
+void* findRange(void* params)
+{
+    range = integerList[N-1]-integerList[0];
+}
+
+void* findMode(void* params)
 {
     int maxFreq = 1;
     int curFreq = 1;
@@ -61,101 +52,113 @@ void* findMode(void* param)
             }
         }
     }
-    pthread_exit(0);
 }
 
-void* findMedian(void* param)
+void* findMedian(void* params)
 {
-    int len = *(int *)param;
-    median = integerList[len / 2];
-    if (len % 2 == 0)
+    median = integerList[N / 2];
+    if (N % 2 == 0)
     {
-        median += integerList[len / 2 + 1];
+        median += integerList[N / 2 + 1];
         median /= 2;
     }
-    pthread_exit(0);
 }
 
-void* findSum(void* param)
+void* findSum(void* params)
 {
     sum = 0;
     for (int i=0; i<N; i++)
         sum += integerList[i];
-    pthread_exit(0);
 }
 
-void* findArithmeticMean(void* param)
+void* findArithmeticMean(void* params)
 {
-    int len = *(int *)param;
     int curSum = 0;
     for (int i=0; i<N; i++)
         curSum += integerList[i];
-    arithmeticMean = (double)curSum/len;
-    pthread_exit(0);
+    arithmeticMean = (double)curSum/N;
 }
 
-void* findHarmonicMean(void* param)
+void* findHarmonicMean(void* params)
 {
     double denominator = 0;
     for (int i=0; i<N; i++)
         denominator += 1 / (double)integerList[i];
-    int len = *(int *)param;
-    harmonicMean = len / denominator;
-    pthread_exit(0);
+    harmonicMean = N / denominator;
 }
 
-void* findStandardDeviation(void* param)
+void* findStandardDeviation(void* params)
 {
-    int len = *(int *)param;
     double numerator = 0;
     int curSum = 0;
     for (int i=0; i<N; i++)
         curSum += integerList[i];
-    double curMean = curSum/(double) len;
+    double curMean = curSum/(double) N;
     for (int i=0; i<N; i++)
-        numerator += power(((double)integerList[i] - curMean), 2.0);
-    standardDeviation = power(numerator / (len - 1), 0.5);
-
-    pthread_exit(0);
+        numerator += pow(((double)integerList[i] - curMean), 2.0);
+    standardDeviation = sqrt(numerator / (N - 1));
 }
 
-void* findIQRRange(void* param)
+void* findIQRRange(void* params)
 {
-    int len = *(int *)param;
-    iqrRange = integerList[len / 4] - integerList[3 * len / 4 + 1];
+    iqrRange = integerList[N / 4] - integerList[3 * N / 4 + 1];
+}
+
+void* (*func_ptrs[10])(void *) = {findMin, findMax, findRange, findMode, findMedian, findSum, findArithmeticMean, findHarmonicMean, findStandardDeviation, findIQRRange};
+
+
+void* execute(void* params){
+    int start = *(int *) params * 10/numThreads;
+    int increment = (10/numThreads);
+    printf("start index: %d\n", start);
+    printf("increment: %d\n", increment);
+    for(int i=start; i<start+increment; i++)
+        (func_ptrs[i])(NULL);
     pthread_exit(0);
 }
+
 
 int main(int argc, char *argv[])
 {
+    if(argc<3)
+    {
+        printf("Please enter the number of threads!!!\n");
+        return 0;
+    }
+
     N = atoi(argv[1]);
+    numThreads = atoi(argv[2]);
     integerList = malloc(sizeof(int)*N); // allocate memory with the size of integers * number of args
 	for (int i = 0; i < N; i++)
-		integerList[i] = 1000 + (rand()%9001);
+		integerList[i] = 1000 + (rand()%9001);  // srand
     qsort(integerList, N, sizeof(int), compare);
-    printf("%d\n", N);
-	
-    pthread_t tid0, tid1, tid2, tid3, tid4, tid5, tid6, tid7, tid8, tid9;
-    pthread_create(&tid0, NULL, findMin, &N);
-    pthread_create(&tid1, NULL, findMax, &N);
-    pthread_create(&tid2, NULL, findRange, &N);
-    pthread_create(&tid3, NULL, findMode, &N);
-    pthread_create(&tid4, NULL, findMedian, &N);
-    pthread_create(&tid5, NULL, findSum, &N);
-    pthread_create(&tid6, NULL, findArithmeticMean, &N);
-    pthread_create(&tid7, NULL, findHarmonicMean, &N);
-    pthread_create(&tid8, NULL, findStandardDeviation, &N);
-    pthread_create(&tid9, NULL, findIQRRange, &N);
-    pthread_join(tid0, NULL);
-    pthread_join(tid1, NULL);
-    pthread_join(tid2, NULL);
-    pthread_join(tid3, NULL);
-    pthread_join(tid4, NULL);
-    pthread_join(tid5, NULL);
-    pthread_join(tid6, NULL);
-    pthread_join(tid7, NULL);
-    pthread_join(tid8, NULL);
-    pthread_join(tid9, NULL);
+
+    if(numThreads==1)
+    {
+        for(int i=0; i<10; i++)
+            (func_ptrs[i])(NULL);
+        
+    }else{
+        pthread_t ids[numThreads]; 
+    
+        for(int i=0; i<numThreads; i++)
+        {
+            int* itr = (int *)malloc(sizeof (int)); 
+            *itr = i;
+            printf("itr: %d\n", *itr);
+            pthread_create(&(ids[i]), NULL, execute, (void*) itr);
+       //     free(itr);
+        }
+
+        for(int i=0; i<numThreads; i++)
+        {
+            pthread_join(ids[i], NULL);
+        }
+    }
+    
+//    printf("%d\n", N);
+
+ //   free(integerList);
 
     printf("%d\n", minimum);
     printf("%d\n", maximum);
@@ -167,5 +170,5 @@ int main(int argc, char *argv[])
     printf("%f\n", harmonicMean);
     printf("%f\n", standardDeviation);
     printf("%d\n", iqrRange);
-
+    return 0;
 }
