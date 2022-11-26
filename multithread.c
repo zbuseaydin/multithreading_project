@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 
     if (10 % numThreads != 0) // functions can not be divided into threads equally
     {
-        printf("Number of threads should be a multiplier of 10!!!\n");
+        printf("Number of threads should be a divider of 10!!!\n");
         return 0;
     }
 
