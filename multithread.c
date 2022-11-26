@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <math.h>
+#include <sys/time.h>
+#include <string.h>
 
 int* integerList;
 int N;
@@ -110,16 +112,19 @@ void* (*func_ptrs[10])(void *) = {findMin, findMax, findRange, findMode, findMed
 void* execute(void* params){
     int start = *(int *) params * 10/numThreads;
     int increment = (10/numThreads);
-    printf("start index: %d\n", start);
-    printf("increment: %d\n", increment);
     for(int i=start; i<start+increment; i++)
         (func_ptrs[i])(NULL);
+    free(params);
     pthread_exit(0);
 }
 
 
 int main(int argc, char *argv[])
 {
+    time_t rawtime;
+    struct tm * timeinfo;
+    time ( &rawtime );
+
     if(argc<3)
     {
         printf("Please enter the number of threads!!!\n");
@@ -133,42 +138,52 @@ int main(int argc, char *argv[])
 		integerList[i] = 1000 + (rand()%9001);  // srand
     qsort(integerList, N, sizeof(int), compare);
 
+    struct timeval begin, end;
+
     if(numThreads==1)
     {
+        gettimeofday(&begin, 0);
         for(int i=0; i<10; i++)
             (func_ptrs[i])(NULL);
         
     }else{
         pthread_t ids[numThreads]; 
-    
+        gettimeofday(&begin, 0);
         for(int i=0; i<numThreads; i++)
         {
             int* itr = (int *)malloc(sizeof (int)); 
             *itr = i;
-            printf("itr: %d\n", *itr);
             pthread_create(&(ids[i]), NULL, execute, (void*) itr);
-       //     free(itr);
         }
 
         for(int i=0; i<numThreads; i++)
         {
             pthread_join(ids[i], NULL);
-        }
+        } 
+        
+        
     }
-    
-//    printf("%d\n", N);
 
- //   free(integerList);
+    free(integerList);
 
-    printf("%d\n", minimum);
-    printf("%d\n", maximum);
-    printf("%d\n", range);
-    printf("%d\n", mode);
-    printf("%f\n", median);
-    printf("%d\n", sum);
-    printf("%f\n", arithmeticMean);
-    printf("%f\n", harmonicMean);
-    printf("%f\n", standardDeviation);
-    printf("%d\n", iqrRange);
+    gettimeofday(&end, 0);
+    double execTime = end.tv_sec - begin.tv_sec + (end.tv_usec - begin.tv_usec)*1e-6;
+
+    FILE* fp; 
+    char fileName[45];
+    sprintf(fileName, "output%d.txt", numThreads);
+    fp = fopen(fileName, "w");
+
+    fprintf(fp, "%d\n", minimum);
+    fprintf(fp, "%d\n", maximum);
+    fprintf(fp, "%d\n", range);
+    fprintf(fp, "%d\n", mode);
+    fprintf(fp, "%.5f\n", median);
+    fprintf(fp, "%d\n", sum);
+    fprintf(fp, "%.5f\n", arithmeticMean);
+    fprintf(fp, "%.5f\n", harmonicMean);
+    fprintf(fp, "%.5f\n", standardDeviation);
+    fprintf(fp, "%d\n", iqrRange);
+    fprintf(fp, "%.5f\n", execTime);
     return 0;
 }
