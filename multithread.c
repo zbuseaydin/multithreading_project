@@ -6,125 +6,27 @@
 #include <sys/time.h>
 #include <string.h>
 
-int* integerList;
+int* intArray;
+double* resultArray;
 int N;
-int minimum;
-int maximum;
-int range;
-int mode;
-double median;
-int sum;
-double arithmeticMean;
-double harmonicMean;
-double standardDeviation;
-int iqrRange;
 int numThreads;
 
-int compare(const void * a, const void * b)
-{
-   return ( *(int*)a - *(int*)b );
-}
-
-void* findMin(void* params){
-    minimum = integerList[0];
-}
-
-void* findMax(void* params){
-    maximum = integerList[N-1];
-}
-
-void* findRange(void* params)
-{
-    range = integerList[N-1]-integerList[0];
-}
-
-void* findMode(void* params)
-{
-    int maxFreq = 1;
-    int curFreq = 1;
-    mode = integerList[0];
-    for(int i=0; i<N-1; i++){
-        if(integerList[i]==integerList[i+1]){
-            curFreq++;
-            if(curFreq>maxFreq){
-                maxFreq = curFreq;
-                mode = integerList[i];
-            }else{
-                curFreq = 1;
-            }
-        }
-    }
-}
-
-void* findMedian(void* params)
-{
-    median = integerList[N / 2];
-    if (N % 2 == 0)
-    {
-        median += integerList[N / 2 + 1];
-        median /= 2;
-    }
-}
-
-void* findSum(void* params)
-{
-    sum = 0;
-    for (int i=0; i<N; i++)
-        sum += integerList[i];
-}
-
-void* findArithmeticMean(void* params)
-{
-    int curSum = 0;
-    for (int i=0; i<N; i++)
-        curSum += integerList[i];
-    arithmeticMean = (double)curSum/N;
-}
-
-void* findHarmonicMean(void* params)
-{
-    double denominator = 0;
-    for (int i=0; i<N; i++)
-        denominator += 1 / (double)integerList[i];
-    harmonicMean = N / denominator;
-}
-
-void* findStandardDeviation(void* params)
-{
-    double numerator = 0;
-    int curSum = 0;
-    for (int i=0; i<N; i++)
-        curSum += integerList[i];
-    double curMean = curSum/(double) N;
-    for (int i=0; i<N; i++)
-        numerator += pow(((double)integerList[i] - curMean), 2.0);
-    standardDeviation = sqrt(numerator / (N - 1));
-}
-
-void* findIQRRange(void* params)
-{
-    iqrRange = integerList[N / 4] - integerList[3 * N / 4 + 1];
-}
-
+void* threadRoutine(void* param);
+int compare(const void * a, const void * b);
+void* findMin(void* params);
+void* findMax(void* params);
+void* findRange(void* params);
+void* findMode(void* params);
+void* findMedian(void* params);
+void* findSum(void* params);
+void* findArithmeticMean(void* params);
+void* findHarmonicMean(void* params);
+void* findStandardDeviation(void* params);
+void* findIQRRange(void* params);
 void* (*func_ptrs[10])(void *) = {findMin, findMax, findRange, findMode, findMedian, findSum, findArithmeticMean, findHarmonicMean, findStandardDeviation, findIQRRange};
-
-
-void* execute(void* params){
-    int start = *(int *) params * 10/numThreads;
-    int increment = (10/numThreads);
-    for(int i=start; i<start+increment; i++)
-        (func_ptrs[i])(NULL);
-    free(params);
-    pthread_exit(0);
-}
-
 
 int main(int argc, char *argv[])
 {
-    time_t rawtime;
-    struct tm * timeinfo;
-    time ( &rawtime );
-
     if(argc<3)
     {
         printf("Please enter the number of threads!!!\n");
@@ -133,11 +35,19 @@ int main(int argc, char *argv[])
 
     N = atoi(argv[1]);
     numThreads = atoi(argv[2]);
-    integerList = malloc(sizeof(int)*N); // allocate memory with the size of integers * number of args
-	for (int i = 0; i < N; i++)
-		integerList[i] = 1000 + (rand()%9001);  // srand
-    qsort(integerList, N, sizeof(int), compare);
 
+    if(10%numThreads!=0)
+    {
+        printf("Number of threads should be a multiplier of 10!!!\n");
+        return 0;
+    }
+    
+    intArray = malloc(sizeof(int)*N); // allocate memory with the size of integers * number of args
+	for (int i = 0; i < N; i++)
+		intArray[i] = 1000 + (rand()%9001);  // srand
+    qsort(intArray, N, sizeof(int), compare);
+
+    resultArray = malloc(sizeof(double)*10);
     struct timeval begin, end;
 
     if(numThreads==1 || numThreads==0)
@@ -149,41 +59,137 @@ int main(int argc, char *argv[])
     }else{
         pthread_t ids[numThreads]; 
         gettimeofday(&begin, 0);
+        int* itr;
         for(int i=0; i<numThreads; i++)
         {
-            int* itr = (int *)malloc(sizeof (int)); 
+            itr = (int *)malloc(sizeof (int)); 
             *itr = i;
-            pthread_create(&(ids[i]), NULL, execute, (void*) itr);
+            pthread_create(&(ids[i]), NULL, threadRoutine, (void*) itr);
         }
 
         for(int i=0; i<numThreads; i++)
         {
             pthread_join(ids[i], NULL);
         } 
-        
-        
+        free(itr);        
     }
 
-    free(integerList);
+    free(intArray);
 
     gettimeofday(&end, 0);
-    double execTime = end.tv_sec - begin.tv_sec + (end.tv_usec - begin.tv_usec)*1e-6;
+    resultArray[10] = end.tv_sec - begin.tv_sec + (end.tv_usec - begin.tv_usec)*1e-6;
 
     FILE* fp; 
     char fileName[45];
     sprintf(fileName, "output%d.txt", numThreads);
     fp = fopen(fileName, "w");
 
-    fprintf(fp, "%d\n", minimum);
-    fprintf(fp, "%d\n", maximum);
-    fprintf(fp, "%d\n", range);
-    fprintf(fp, "%d\n", mode);
-    fprintf(fp, "%.5f\n", median);
-    fprintf(fp, "%d\n", sum);
-    fprintf(fp, "%.5f\n", arithmeticMean);
-    fprintf(fp, "%.5f\n", harmonicMean);
-    fprintf(fp, "%.5f\n", standardDeviation);
-    fprintf(fp, "%d\n", iqrRange);
-    fprintf(fp, "%.5f\n", execTime);
+    for(int i=0; i<11; i++)
+    {
+        fprintf(fp, "%.5f\n", resultArray[i]);
+    }
+
+    fclose(fp);
+
     return 0;
+}
+
+void* threadRoutine(void* params)
+{
+    int funcPerThread = (10/numThreads);
+    int start = *(int *) params * funcPerThread;
+    for(int i=start; i<start+funcPerThread; i++)
+    {
+        (func_ptrs[i])(NULL);
+    }
+    free(params);
+    pthread_exit(0);
+}
+
+int compare(const void * a, const void * b)
+{
+   return ( *(int*)a - *(int*)b );
+}
+
+void* findMin(void* params)
+{
+    resultArray[0] = intArray[0];
+}
+
+void* findMax(void* params)
+{
+    resultArray[1] = intArray[N-1];
+}
+
+void* findRange(void* params)
+{
+    resultArray[2] = intArray[N-1]-intArray[0];
+}
+
+void* findMode(void* params)
+{
+    int maxFreq = 1;
+    int curFreq = 1;
+    resultArray[3] = intArray[0];
+    for(int i=0; i<N-1; i++){
+        if(intArray[i]==intArray[i+1]){
+            curFreq++;
+            if(curFreq>maxFreq){
+                maxFreq = curFreq;
+                resultArray[3] = intArray[i];
+            }else{
+                curFreq = 1;
+            }
+        }
+    }
+}
+
+void* findMedian(void* params)
+{
+    resultArray[4] = intArray[N/2];
+    if (N % 2 == 0)
+    {
+        resultArray[4] += intArray[N/2 + 1];
+        resultArray[4] /= 2;
+    }
+}
+
+void* findSum(void* params)
+{
+    resultArray[5] = 0;
+    for (int i=0; i<N; i++)
+        resultArray[5] += intArray[i];
+}
+
+void* findArithmeticMean(void* params)
+{
+    int curSum = 0;
+    for (int i=0; i<N; i++)
+        curSum += intArray[i];
+    resultArray[6] = (double)curSum/N;
+}
+
+void* findHarmonicMean(void* params)
+{
+    double denominator = 0;
+    for (int i=0; i<N; i++)
+        denominator += 1 / (double)intArray[i];
+    resultArray[7] = N / denominator;
+}
+
+void* findStandardDeviation(void* params)
+{
+    double numerator = 0;
+    int curSum = 0;
+    for (int i=0; i<N; i++)
+        curSum += intArray[i];
+    double curMean = curSum/(double) N;
+    for (int i=0; i<N; i++)
+        numerator += pow(((double)intArray[i] - curMean), 2.0);
+    resultArray[8] = sqrt(numerator / (N - 1));
+}
+
+void* findIQRRange(void* params)
+{
+    resultArray[9] = intArray[N/4] - intArray[3 * N/4 + 1];
 }
