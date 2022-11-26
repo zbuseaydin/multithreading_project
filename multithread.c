@@ -105,7 +105,6 @@ void *threadRoutine(void *params)
     {
         (functions[i])(NULL);
     }
-    free(params);
     pthread_exit(0);
 }
 
