@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
 
     struct timeval begin, end;
 
-    if(numThreads==1)
+    if(numThreads==1 || numThreads==0)
     {
         gettimeofday(&begin, 0);
         for(int i=0; i<10; i++)
