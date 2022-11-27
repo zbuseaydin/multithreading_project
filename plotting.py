@@ -2,30 +2,31 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-x_arr = []
-for i in range(100):
-    x_arr.append(1)
-    x_arr.append(2)
-    x_arr.append(5)
-    x_arr.append(10)
+number_of_execution = 100
+array_size = "40000"
+thread_list = ["0", "1", "2", "5", "10"]
+y_axis = []
+x_axis = []
 
-x = np.array(x_arr)
-
+for i in range(number_of_execution):
+    x_axis.append(0)
+    x_axis.append(1)
+    x_axis.append(2)
+    x_axis.append(5)
+    x_axis.append(10)
+x = np.array(x_axis)
 
 os.system("make")
 
-my_list = ["1", "2", "5", "10"]
-y_axis = []
-for i in range(100):
-    for no in my_list:
-        os.system("./myprogram.o 10000 " + no)
-        my_file = open("output"+no+".txt", "r")
-        y_axis.append(float(my_file.readlines()[-1]))
-
+for i in range(number_of_execution):
+    for num_thread in thread_list:
+        os.system(f"./myprogram.o {array_size} {num_thread}")
+        cur_file = open(f"output{num_thread}.txt", "r")
+        y_axis.append(float(cur_file.readlines()[-1]))
 y = np.array(y_axis)
 
 plt.scatter(x, y)
 plt.xlabel("Number of threads")
 plt.ylabel("Execution time")
-plt.title("Array size = 10000")
+plt.title("Array size = " + array_size)
 plt.show()
