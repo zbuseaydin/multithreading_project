@@ -16,13 +16,16 @@ for i in range(number_of_execution):
     x_axis.append(10)
 x = np.array(x_axis)
 
+
 os.system("make")
+
 
 for i in range(number_of_execution):
     for num_thread in thread_list:
         os.system(f"./myprogram.o {array_size} {num_thread}")
         cur_file = open(f"output{num_thread}.txt", "r")
         y_axis.append(float(cur_file.readlines()[-1]))
+
 y = np.array(y_axis)
 
 plt.scatter(x, y)
