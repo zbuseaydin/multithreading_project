@@ -29,14 +29,14 @@ int main(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        printf("Please enter the number of threads!!!\n");
+        printf("Please enter the number of threads!!! (0 or 1 for singlethreaded execution)\n");
         return 0;
     }
 
     N = atoi(argv[1]); // N is the length of randomized array
     numThreads = atoi(argv[2]);
 
-    if (10 % numThreads != 0) // functions can not be divided into threads equally
+    if (numThreads > 2 && 10 % numThreads != 0) // functions can not be divided into threads equally
     {
         printf("Number of threads should be a multiplier of 10!!!\n");
         return 0;
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     resultArray = malloc(sizeof(double) * 11); // allocate memory for the desired 11 output
     struct timeval begin, end;
 
-    if (numThreads == 1 || numThreads == 0) // no multithreading
+    if (numThreads == 0 || numThreads == 1) // no multithreading
     {
         gettimeofday(&begin, 0);
         for (int i = 0; i < 10; i++)
@@ -156,7 +156,7 @@ void *findMedian(void *params)
     resultArray[4] = intArray[N / 2];
     if (N % 2 == 0)
     {
-        resultArray[4] += intArray[N / 2 + 1];
+        resultArray[4] += intArray[N / 2 - 1];
         resultArray[4] /= 2;
     }
 }
@@ -198,5 +198,16 @@ void *findStandardDeviation(void *params)
 
 void *findIQRRange(void *params)
 {
-    resultArray[9] = intArray[N / 4] - intArray[3 * N / 4 + 1];
+    resultArray[9] = intArray[3 * N / 4] - intArray[N / 4];
+
+    if (N % 4 == 0)
+    {
+        resultArray[9] += (intArray[3 * N / 4 - 1] - intArray[N / 4 - 1]);
+        resultArray[9] /= 2;
+    }
+    else if (N % 4 == 1)
+    {
+        resultArray[9] += (intArray[3 * N / 4 + 1] - intArray[N / 4 - 1]);
+        resultArray[9] /= 2;
+    }
 }
